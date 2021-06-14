@@ -21,7 +21,7 @@ const QUERY = `
 query Test {
     articles(first: 5) { 
         nodes { 
-            publishedAt
+            updatedAt
             title
             url 
         }
@@ -35,7 +35,7 @@ function handleGraphQLResponse(res) {
     const {data} = res
     if(data !== null && data.articles && data.articles.nodes) {
         data.articles.nodes.forEach(article => {
-            const publishDate = new Date(article.publishedAt)
+            const publishDate = new Date(article.updatedAt)
             const lastCheckDate = new Date(new Date().getTime() - MILLISECS_SINCE_LAST_CHECK)
             if(publishDate > lastCheckDate) {
                 printToSlackChannel(article.title, article.url, article.url.includes('kultz') ? 'Kultz.ch' : 'Bajour.ch')
