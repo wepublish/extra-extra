@@ -5,7 +5,6 @@ const { IncomingWebhook } = require('@slack/webhook');
 
 const parser = new Parser();
 const incomingWebhook = process.env.SLACK_INCOMING_WEBHOOK
-console.log('webhook', incomingWebhook)
 const webhook = new IncomingWebhook(incomingWebhook);
 
 const bajourClient = createClient({
@@ -39,7 +38,6 @@ function handleGraphQLResponse(res) {
             const publishDate = new Date(article.publishedAt)
             const lastCheckDate = new Date(new Date().getTime() - MILLISECS_SINCE_LAST_CHECK)
             if(publishDate > lastCheckDate) {
-                console.log('new article', article)
                 printToSlackChannel(article.title, article.url, article.url.includes('kultz') ? 'Kultz.ch' : 'Bajour.ch')
             }
         })
@@ -64,7 +62,6 @@ app.get('/', async (req, res) => {
             const publishDate = new Date(article.pubDate)
             const lastCheckDate = new Date(new Date().getTime() - MILLISECS_SINCE_LAST_CHECK)
             if(publishDate > lastCheckDate) {
-                console.log('new article', article)
                 printToSlackChannel(article.title, article.link, 'Tsüri.ch')
             }
         })
