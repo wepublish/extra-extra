@@ -31,22 +31,39 @@ query Test {
 
 const MILLISECS_SINCE_LAST_CHECK = 900000 // 15 min
 
+const TWENTY_FOUR_HOURS_IN_MILLISECONDS = 3600000 * 24
+
 function handleGraphQLResponse(res) {
     const {data} = res
     if(data !== null && data.articles && data.articles.nodes) {
         data.articles.nodes.forEach(article => {
             const publishDate = new Date(article.updatedAt)
-            const lastCheckDate = new Date(new Date().getTime() - MILLISECS_SINCE_LAST_CHECK)
+            const lastCheckDate = new Date(new Date().getTime() - TWENTY_FOUR_HOURS_IN_MILLISECONDS)
             if(publishDate > lastCheckDate) {
-                printToSlackChannel(article.title, article.url, article.url.includes('kultz') ? 'Kultz.ch' : 'Bajour.ch')
+                printToSlackChannel(article.title, article.url, article.url.includes('kultz') ? ':kultz:' : ':bajour:', publishDate)
             }
         })
     }
 }
 
-function printToSlackChannel(title, link, newsroom) {
+async function handleRSSFeed(url, newsroom) {
+    const res = await parser.parseURL(url)
+    const {items} = res
+    if(items) {
+        items.forEach((article) => {
+            const publishDate = new Date(article.pubDate)
+            const lastCheckDate = new Date(new Date().getTime() - TWENTY_FOUR_HOURS_IN_MILLISECONDS)
+            if(publishDate > lastCheckDate) {
+                printToSlackChannel(article.title, article.link, newsroom, publishDate)
+            }
+        })
+    }
+}
+
+function printToSlackChannel(title, link, newsroom, date) {
+ const formatedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`
  webhook.send({
-    text: `Neuer Artikel von ${newsroom} mit dem Titel "${title}" wurde soeben publiziert. ${link}`
+    text: `${newsroom} -- <${link}|"${title}"> wurde am ${formatedDate} publiziert. `
  })
 }
 
@@ -55,22 +72,24 @@ const express = require('express');
 const app = express();
 
 app.get('/', async (req, res) => {
-    const tsriRes = await parser.parseURL('https://tsri.ch/feed/')
-    const {items} = tsriRes
-    if(items) {
-        items.forEach((article) => {
-            const publishDate = new Date(article.pubDate)
-            const lastCheckDate = new Date(new Date().getTime() - MILLISECS_SINCE_LAST_CHECK)
-            if(publishDate > lastCheckDate) {
-                printToSlackChannel(article.title, article.link, 'Tsüri.ch')
-            }
-        })
-    }
+    webhook.send({
+        text: `In den letzten 24 Stunden wurden folgende Artikel publiziert:`
+    })
+    await handleRSSFeed('https://www.tsri.ch/feed', ':tsueri:')
+
     const bajourItems = await bajourClient.query(QUERY, {}).toPromise()
     handleGraphQLResponse(bajourItems)
 
     const kultzItems = await kultzClient.query(QUERY, {}).toPromise()
     handleGraphQLResponse(kultzItems)
+
+    await handleRSSFeed('https://www.higgs.ch/feed', ':higgs:')
+
+    await handleRSSFeed('https://www.babanews.ch/feed', ':babanews:')
+
+    await handleRSSFeed('https://www.woz.ch/t/startseite/feed', ':woz:')
+
+    await handleRSSFeed('https://daslamm.ch/feed', ':daslamm:')
 
     res.send('DONE DONE!');
 });

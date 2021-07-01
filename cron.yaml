@@ -1,4 +1,5 @@
 cron:
 - description: "every 15 minutes"
   url: /
-  schedule: every 15 minutes
+  timezone: Europe/Zurich
+  schedule: every mon,tue,wed,thu,fri 09:00
