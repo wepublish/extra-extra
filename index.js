@@ -107,7 +107,7 @@ app.get('/', async (req, res) => {
 
     try {
         const hauptstadtItems = await hauptstadtClient.query(QUERY, {}).toPromise()
-        handleGraphQLResponse(hauptstadtItems, '')
+        handleGraphQLResponse(hauptstadtItems, ':has-logo:')
     } catch (e) {
         console.error(e)
     }
@@ -123,11 +123,8 @@ app.get('/', async (req, res) => {
     await handleRSSFeed('https://www.babanews.ch/feed/', ':babanews:')
     await handleRSSFeed('https://www.woz.ch/t/startseite/feed', ':woz:')
     await handleRSSFeed('https://daslamm.ch/feed', ':daslamm:')
-    await handleRSSFeed('https://vybe.ch/feed/', '')
-    await handleRSSFeed('https://akutmag.ch/feed/', '')
-    await handleRSSFeed('https://www.tippinpoint.ch/tools/rss/news.xml', '')
-    await handleRSSFeed('https://jetztzeit.blog/feed/', '')
-    await handleRSSFeed('https://fridamagazin.ch/feed/', '')
+    await handleRSSFeed('https://akutmag.ch/feed/', ':akutlogo:')
+    await handleRSSFeed('https://www.tippinpoint.ch/tools/rss/news.xml', ':tippinpoint-logo:')
 
     res.send('DONE DONE!');
 });
