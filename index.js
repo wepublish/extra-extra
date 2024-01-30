@@ -3,7 +3,11 @@ const fetch = require('node-fetch')
 const Parser = require('rss-parser');
 const { IncomingWebhook } = require('@slack/webhook');
 
-const parser = new Parser();
+const parser = new Parser({
+    headers: {
+        Accept: 'ext/html,application/xhtml+xml,application/xml'
+    }
+});
 const incomingWebhook = process.env.SLACK_INCOMING_WEBHOOK
 const webhook = new IncomingWebhook(incomingWebhook);
 
@@ -17,11 +21,6 @@ const tsriClient = createClient({
     fetch
 });
 
-const kultzClient = createClient({
-    url: 'https://api.kultz.ch',
-    fetch
-});
-
 const hauptstadtClient = createClient({
     url: 'https://api.hauptstadt.be/v1',
     fetch
@@ -29,7 +28,7 @@ const hauptstadtClient = createClient({
 
 const QUERY = `
 query Test {
-    articles(first: 5) {
+    articles(take: 5) {
         nodes {
             updatedAt
             title
@@ -50,6 +49,7 @@ function handleGraphQLResponse(res, emoji) {
             const lastCheckDate = new Date(new Date().getTime() - TWENTY_FOUR_HOURS_IN_MILLISECONDS)
 
             if (publishDate > lastCheckDate) {
+                console.log(article.title)
                 printToSlackChannel(article.title, article.url, emoji, publishDate)
             }
         })
@@ -71,7 +71,7 @@ async function handleRSSFeed(url, newsroom) {
             })
         }
     } catch (e) {
-        console.error(e)
+        console.error(url, e)
     }
 }
 
@@ -112,17 +112,10 @@ app.get('/', async (req, res) => {
         console.error(e)
     }
 
-    try {
-        const kultzItems = await kultzClient.query(QUERY, {}).toPromise()
-        handleGraphQLResponse(kultzItems, ':kultz:')
-    } catch (e) {
-        console.error(e)
-    }
-
     await handleRSSFeed('https://www.higgs.ch/feed/', ':higgs:')
     await handleRSSFeed('https://www.babanews.ch/feed/', ':babanews:')
     await handleRSSFeed('https://www.woz.ch/t/startseite/feed', ':woz:')
-    await handleRSSFeed('https://daslamm.ch/feed', ':daslamm:')
+    await handleRSSFeed('https://daslamm.ch/feed/', ':daslamm:')
     await handleRSSFeed('https://akutmag.ch/feed/', ':akutlogo:')
     await handleRSSFeed('https://www.tippinpoint.ch/tools/rss/news.xml', ':tippinpoint-logo:')
 
