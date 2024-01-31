@@ -26,6 +26,11 @@ const hauptstadtClient = createClient({
     fetch
 });
 
+const gruppettoClient = createClient({
+    url: 'https://api.gruppetto.wepublish.media/v1',
+    fetch
+});
+
 const QUERY = `
 query Test {
     articles(take: 5) {
@@ -108,6 +113,13 @@ app.get('/', async (req, res) => {
     try {
         const hauptstadtItems = await hauptstadtClient.query(QUERY, {}).toPromise()
         handleGraphQLResponse(hauptstadtItems, ':has-logo:')
+    } catch (e) {
+        console.error(e)
+    }
+
+    try {
+        const gruppettoItems = await gruppettoClient.query(QUERY, {}).toPromise()
+        handleGraphQLResponse(gruppettoItems, ':gruppetto_rosa_logo:')
     } catch (e) {
         console.error(e)
     }
