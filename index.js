@@ -3,60 +3,80 @@ const fetch = require('node-fetch')
 const Parser = require('rss-parser');
 const { IncomingWebhook } = require('@slack/webhook');
 
-const parser = new Parser();
+const parser = new Parser({
+    headers: {
+        Accept: 'ext/html,application/xhtml+xml,application/xml'
+    }
+});
 const incomingWebhook = process.env.SLACK_INCOMING_WEBHOOK
 const webhook = new IncomingWebhook(incomingWebhook);
 
 const bajourClient = createClient({
-    url: 'https://api.bajour.ch',
+    url: 'https://api.bajour.ch/v1',
     fetch
 });
 
-const kultzClient = createClient({
-    url: 'https://api.kultz.ch',
+const tsriClient = createClient({
+    url: 'https://api.tsri.ch/v1',
+    fetch
+});
+
+const hauptstadtClient = createClient({
+    url: 'https://api.hauptstadt.be/v1',
+    fetch
+});
+
+const gruppettoClient = createClient({
+    url: 'https://api.gruppetto.wepublish.media/v1',
     fetch
 });
 
 const QUERY = `
 query Test {
-    articles(first: 5) { 
-        nodes { 
+    articles(take: 5) {
+        nodes {
             updatedAt
             title
-            url 
+            url
         }
     }
 }
 `
 
-const MILLISECS_SINCE_LAST_CHECK = 900000 // 15 min
-
 const TWENTY_FOUR_HOURS_IN_MILLISECONDS = 3600000 * 24
 
-function handleGraphQLResponse(res) {
+function handleGraphQLResponse(res, emoji) {
     const {data} = res
-    if(data !== null && data.articles && data.articles.nodes) {
+
+    if (data !== null && data.articles && data.articles.nodes) {
         data.articles.nodes.forEach(article => {
             const publishDate = new Date(article.updatedAt)
             const lastCheckDate = new Date(new Date().getTime() - TWENTY_FOUR_HOURS_IN_MILLISECONDS)
-            if(publishDate > lastCheckDate) {
-                printToSlackChannel(article.title, article.url, article.url.includes('kultz') ? ':kultz:' : ':bajour:', publishDate)
+
+            if (publishDate > lastCheckDate) {
+                console.log(article.title)
+                printToSlackChannel(article.title, article.url, emoji, publishDate)
             }
         })
     }
 }
 
 async function handleRSSFeed(url, newsroom) {
-    const res = await parser.parseURL(url)
-    const {items} = res
-    if(items) {
-        items.forEach((article) => {
-            const publishDate = new Date(article.pubDate)
-            const lastCheckDate = new Date(new Date().getTime() - TWENTY_FOUR_HOURS_IN_MILLISECONDS)
-            if(publishDate > lastCheckDate) {
-                printToSlackChannel(article.title, article.link, newsroom, publishDate)
-            }
-        })
+    try {
+        const res = await parser.parseURL(url)
+        const {items} = res
+
+        if (items) {
+            items.forEach((article) => {
+                const publishDate = new Date(article.pubDate)
+                const lastCheckDate = new Date(new Date().getTime() - TWENTY_FOUR_HOURS_IN_MILLISECONDS)
+                if(publishDate > lastCheckDate) {
+                    printToSlackChannel(article.title, article.link, newsroom, publishDate)
+                }
+            })
+        }
+    } catch (e) {
+        console.error(url, e)
     }
 }
 
@@ -75,21 +95,41 @@ app.get('/', async (req, res) => {
     webhook.send({
         text: `In den letzten 24 Stunden wurden folgende Artikel publiziert:`
     })
-    await handleRSSFeed('https://www.tsri.ch/feed', ':tsueri:')
 
-    const bajourItems = await bajourClient.query(QUERY, {}).toPromise()
-    handleGraphQLResponse(bajourItems)
+    try {
+        const bajourItems = await bajourClient.query(QUERY, {}).toPromise()
+        handleGraphQLResponse(bajourItems, ':bajour:')
+    } catch (e) {
+        console.error(e)
+    }
 
-    const kultzItems = await kultzClient.query(QUERY, {}).toPromise()
-    handleGraphQLResponse(kultzItems)
+    try {
+        const tsriItems = await tsriClient.query(QUERY, {}).toPromise()
+        handleGraphQLResponse(tsriItems, ':tsueri:')
+    } catch (e) {
+        console.error(e)
+    }
 
-    await handleRSSFeed('https://www.higgs.ch/feed', ':higgs:')
+    try {
+        const hauptstadtItems = await hauptstadtClient.query(QUERY, {}).toPromise()
+        handleGraphQLResponse(hauptstadtItems, ':has-logo:')
+    } catch (e) {
+        console.error(e)
+    }
 
-    await handleRSSFeed('https://www.babanews.ch/feed', ':babanews:')
+    try {
+        const gruppettoItems = await gruppettoClient.query(QUERY, {}).toPromise()
+        handleGraphQLResponse(gruppettoItems, ':gruppetto_rosa_logo:')
+    } catch (e) {
+        console.error(e)
+    }
 
+    await handleRSSFeed('https://www.higgs.ch/feed/', ':higgs:')
+    await handleRSSFeed('https://www.babanews.ch/feed/', ':babanews:')
     await handleRSSFeed('https://www.woz.ch/t/startseite/feed', ':woz:')
-
-    await handleRSSFeed('https://daslamm.ch/feed', ':daslamm:')
+    await handleRSSFeed('https://daslamm.ch/feed/', ':daslamm:')
+    await handleRSSFeed('https://akutmag.ch/feed/', ':akutlogo:')
+    await handleRSSFeed('https://www.tippinpoint.ch/tools/rss/news.xml', ':tippinpoint-logo:')
 
     res.send('DONE DONE!');
 });
